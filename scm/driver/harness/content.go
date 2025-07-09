@@ -18,8 +18,12 @@ type contentService struct {
 }
 
 func (s *contentService) Find(ctx context.Context, repo, path, ref string) (*scm.Content, *scm.Response, error) {
-	repo = buildHarnessURI(s.client.account, s.client.organization, s.client.project, repo)
-	endpoint := fmt.Sprintf("api/v1/repos/%s/content/%s?git_ref=%s&include_commit=true", repo, path, ref)
+	slug := buildHarnessURI(s.client.account, s.client.organization, s.client.project, repo)
+	repoId, queryParams, err := getRepoAndQueryParams(slug)
+	if err != nil {
+		return nil, nil, err
+	}
+	endpoint := fmt.Sprintf("api/v1/repos/%s/content/%s?git_ref=%s&include_commit=true&%s", repoId, path, ref, queryParams)
 	out := new(fileContent)
 	res, err := s.client.do(ctx, "GET", endpoint, nil, out)
 	// decode raw output content
@@ -33,8 +37,12 @@ func (s *contentService) Find(ctx context.Context, repo, path, ref string) (*scm
 }
 
 func (s *contentService) Create(ctx context.Context, repo, path string, params *scm.ContentParams) (*scm.Response, error) {
-	repo = buildHarnessURI(s.client.account, s.client.organization, s.client.project, repo)
-	endpoint := fmt.Sprintf("api/v1/repos/%s/commits", repo)
+	slug := buildHarnessURI(s.client.account, s.client.organization, s.client.project, repo)
+	repoId, queryParams, err := getRepoAndQueryParams(slug)
+	if err != nil {
+		return nil, err
+	}
+	endpoint := fmt.Sprintf("api/v1/repos/%s/commits?%s", repoId, queryParams)
 	a := action{
 		Action:   "CREATE",
 		Path:     path,
@@ -42,10 +50,15 @@ func (s *contentService) Create(ctx context.Context, repo, path string, params *
 		Encoding: "string",
 	}
 	in := editFile{
-		Branch:  params.Branch,
-		Message: params.Message,
-		Title:   params.Message,
-		Actions: []action{a},
+		Branch:      params.Branch,
+		Message:     params.Message,
+		Title:       params.Message,
+		Actions:     []action{a},
+		BypassRules: true,
+		Author: identity{
+			Name:  params.Signature.Name,
+			Email: params.Signature.Email,
+		},
 	}
 
 	res, err := s.client.do(ctx, "POST", endpoint, in, nil)
@@ -53,8 +66,12 @@ func (s *contentService) Create(ctx context.Context, repo, path string, params *
 }
 
 func (s *contentService) Update(ctx context.Context, repo, path string, params *scm.ContentParams) (*scm.Response, error) {
-	repo = buildHarnessURI(s.client.account, s.client.organization, s.client.project, repo)
-	endpoint := fmt.Sprintf("api/v1/repos/%s/commits", repo)
+	slug := buildHarnessURI(s.client.account, s.client.organization, s.client.project, repo)
+	repoId, queryParams, err := getRepoAndQueryParams(slug)
+	if err != nil {
+		return nil, err
+	}
+	endpoint := fmt.Sprintf("api/v1/repos/%s/commits?%s", repoId, queryParams)
 	a := action{
 		Action:   "UPDATE",
 		Path:     path,
@@ -63,10 +80,15 @@ func (s *contentService) Update(ctx context.Context, repo, path string, params *
 		Sha:      params.BlobID,
 	}
 	in := editFile{
-		Branch:  params.Branch,
-		Message: params.Message,
-		Title:   params.Message,
-		Actions: []action{a},
+		Branch:      params.Branch,
+		Message:     params.Message,
+		Title:       params.Message,
+		Actions:     []action{a},
+		BypassRules: true,
+		Author: identity{
+			Name:  params.Signature.Name,
+			Email: params.Signature.Email,
+		},
 	}
 
 	res, err := s.client.do(ctx, "POST", endpoint, in, nil)
@@ -74,18 +96,27 @@ func (s *contentService) Update(ctx context.Context, repo, path string, params *
 }
 
 func (s *contentService) Delete(ctx context.Context, repo, path string, params *scm.ContentParams) (*scm.Response, error) {
-	repo = buildHarnessURI(s.client.account, s.client.organization, s.client.project, repo)
-	endpoint := fmt.Sprintf("api/v1/repos/%s/commits", repo)
+	slug := buildHarnessURI(s.client.account, s.client.organization, s.client.project, repo)
+	repoId, queryParams, err := getRepoAndQueryParams(slug)
+	if err != nil {
+		return nil, err
+	}
+	endpoint := fmt.Sprintf("api/v1/repos/%s/commits?%s", repoId, queryParams)
 	a := action{
 		Action:   "DELETE",
 		Path:     path,
 		Encoding: "string",
 	}
 	in := editFile{
-		Branch:  params.Branch,
-		Message: params.Message,
-		Title:   params.Message,
-		Actions: []action{a},
+		Branch:      params.Branch,
+		Message:     params.Message,
+		Title:       params.Message,
+		Actions:     []action{a},
+		BypassRules: true,
+		Author: identity{
+			Name:  params.Signature.Name,
+			Email: params.Signature.Email,
+		},
 	}
 
 	res, err := s.client.do(ctx, "POST", endpoint, in, nil)
@@ -93,114 +124,110 @@ func (s *contentService) Delete(ctx context.Context, repo, path string, params *
 }
 
 func (s *contentService) List(ctx context.Context, repo, path, ref string, _ scm.ListOptions) ([]*scm.ContentInfo, *scm.Response, error) {
-	repo = buildHarnessURI(s.client.account, s.client.organization, s.client.project, repo)
-	endpoint := fmt.Sprintf("api/v1/repos/%s/content/%s?git_ref=%s&include_commit=true", repo, path, ref)
+	slug := buildHarnessURI(s.client.account, s.client.organization, s.client.project, repo)
+	repoId, queryParams, err := getRepoAndQueryParams(slug)
+	if err != nil {
+		return nil, nil, err
+	}
+	endpoint := fmt.Sprintf("api/v1/repos/%s/content/%s?git_ref=%s&include_commit=true&%s", repoId, path, ref, queryParams)
 	out := new(contentList)
 	res, err := s.client.do(ctx, "GET", endpoint, nil, &out)
 	return convertContentInfoList(out.Content.Entries), res, err
 }
 
-type editFile struct {
-	Actions   []action `json:"actions"`
-	Branch    string   `json:"branch"`
-	Message   string   `json:"message"`
-	NewBranch string   `json:"new_branch"`
-	Title     string   `json:"title"`
-}
+type (
+	identity struct {
+		Name  string `json:"name"`
+		Email string `json:"email"`
+	}
 
-type action struct {
-	Action   string `json:"action"`
-	Encoding string `json:"encoding"`
-	Path     string `json:"path"`
-	Payload  string `json:"payload"`
-	Sha      string `json:"sha"`
-}
+	editFile struct {
+		Actions   []action `json:"actions"`
+		Author    identity `json:"author"`
+		Branch    string   `json:"branch"`
+		Message   string   `json:"message"`
+		NewBranch string   `json:"new_branch"`
+		Title     string   `json:"title"`
 
-type fileContent struct {
-	Type         string `json:"type"`
-	Sha          string `json:"sha"`
-	Name         string `json:"name"`
-	Path         string `json:"path"`
-	LatestCommit struct {
-		Sha     string `json:"sha"`
-		Title   string `json:"title"`
-		Message string `json:"message"`
-		Author  struct {
-			Identity struct {
-				Name  string `json:"name"`
-				Email string `json:"email"`
-			} `json:"identity"`
-			When time.Time `json:"when"`
-		} `json:"author"`
-		Committer struct {
-			Identity struct {
-				Name  string `json:"name"`
-				Email string `json:"email"`
-			} `json:"identity"`
-			When time.Time `json:"when"`
-		} `json:"committer"`
-	} `json:"latest_commit"`
-	Content struct {
+		BypassRules bool `json:"bypass_rules"`
+	}
+
+	action struct {
+		Action   string `json:"action"`
 		Encoding string `json:"encoding"`
-		Data     string `json:"data"`
-		Size     int    `json:"size"`
-	} `json:"content"`
-}
+		Path     string `json:"path"`
+		Payload  string `json:"payload"`
+		Sha      string `json:"sha"`
+	}
 
-type contentList struct {
-	Type         string `json:"type"`
-	Sha          string `json:"sha"`
-	Name         string `json:"name"`
-	Path         string `json:"path"`
-	LatestCommit struct {
-		Sha     string `json:"sha"`
-		Title   string `json:"title"`
-		Message string `json:"message"`
-		Author  struct {
-			Identity struct {
-				Name  string `json:"name"`
-				Email string `json:"email"`
-			} `json:"identity"`
-			When time.Time `json:"when"`
-		} `json:"author"`
-		Committer struct {
-			Identity struct {
-				Name  string `json:"name"`
-				Email string `json:"email"`
-			} `json:"identity"`
-			When time.Time `json:"when"`
-		} `json:"committer"`
-	} `json:"latest_commit"`
-	Content struct {
-		Entries []fileEntry `json:"entries"`
-	} `json:"content"`
-}
+	fileContent struct {
+		Type         string `json:"type"`
+		Sha          string `json:"sha"`
+		Name         string `json:"name"`
+		Path         string `json:"path"`
+		LatestCommit struct {
+			Sha     string `json:"sha"`
+			Title   string `json:"title"`
+			Message string `json:"message"`
+			Author  struct {
+				Identity identity  `json:"identity"`
+				When     time.Time `json:"when"`
+			} `json:"author"`
+			Committer struct {
+				Identity identity  `json:"identity"`
+				When     time.Time `json:"when"`
+			} `json:"committer"`
+		} `json:"latest_commit"`
+		Content struct {
+			Encoding string `json:"encoding"`
+			Data     string `json:"data"`
+			Size     int    `json:"size"`
+		} `json:"content"`
+	}
 
-type fileEntry struct {
-	Type         string `json:"type"`
-	Sha          string `json:"sha"`
-	Name         string `json:"name"`
-	Path         string `json:"path"`
-	LatestCommit struct {
-		Sha     string `json:"sha"`
-		Title   string `json:"title"`
-		Message string `json:"message"`
-		Author  struct {
-			Identity struct {
-				Name  string `json:"name"`
-				Email string `json:"email"`
-			} `json:"identity"`
-			When time.Time `json:"when"`
-		} `json:"author"`
-		Committer struct {
-			Identity struct {
-				Name  string `json:"name"`
-				Email string `json:"email"`
-			} `json:"identity"`
-			When time.Time `json:"when"`
-		} `json:"committer"`
-	} `json:"latest_commit"`
-}
+	contentList struct {
+		Type         string `json:"type"`
+		Sha          string `json:"sha"`
+		Name         string `json:"name"`
+		Path         string `json:"path"`
+		LatestCommit struct {
+			Sha     string `json:"sha"`
+			Title   string `json:"title"`
+			Message string `json:"message"`
+			Author  struct {
+				Identity identity  `json:"identity"`
+				When     time.Time `json:"when"`
+			} `json:"author"`
+			Committer struct {
+				Identity identity  `json:"identity"`
+				When     time.Time `json:"when"`
+			} `json:"committer"`
+		} `json:"latest_commit"`
+		Content struct {
+			Entries []fileEntry `json:"entries"`
+		} `json:"content"`
+	}
+
+	fileEntry struct {
+		Type         string `json:"type"`
+		Sha          string `json:"sha"`
+		Name         string `json:"name"`
+		Path         string `json:"path"`
+		LatestCommit struct {
+			Sha     string `json:"sha"`
+			Title   string `json:"title"`
+			Message string `json:"message"`
+			Author  struct {
+				Identity identity  `json:"identity"`
+				When     time.Time `json:"when"`
+			} `json:"author"`
+			Committer struct {
+				Identity identity  `json:"identity"`
+				When     time.Time `json:"when"`
+			} `json:"committer"`
+		} `json:"latest_commit"`
+	}
+)
 
 func convertContentInfoList(from []fileEntry) []*scm.ContentInfo {
 	to := []*scm.ContentInfo{}

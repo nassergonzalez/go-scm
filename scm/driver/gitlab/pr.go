@@ -60,14 +60,23 @@ func (s *pullService) ListCommits(ctx context.Context, repo string, number int, 
 }
 
 func (s *pullService) Create(ctx context.Context, repo string, input *scm.PullRequestInput) (*scm.PullRequest, *scm.Response, error) {
-	in := url.Values{}
-	in.Set("title", input.Title)
-	in.Set("description", input.Body)
-	in.Set("source_branch", input.Source)
-	in.Set("target_branch", input.Target)
-	path := fmt.Sprintf("api/v4/projects/%s/merge_requests?%s", encode(repo), in.Encode())
+	// https://docs.gitlab.com/ee/api/merge_requests.html#create-mr
+	in := struct {
+		Title        string `json:"title"`
+		Description  string `json:"description"`
+		SourceBranch string `json:"source_branch"`
+		TargetBranch string `json:"target_branch"`
+	}{
+		Title:        input.Title,
+		Description:  input.Body,
+		SourceBranch: input.Source,
+		TargetBranch: input.Target,
+	}
+
+	path := fmt.Sprintf("api/v4/projects/%s/merge_requests", encode(repo))
+
 	out := new(pr)
-	res, err := s.client.do(ctx, "POST", path, nil, out)
+	res, err := s.client.do(ctx, "POST", path, in, out)
 	return convertPullRequest(out), res, err
 }
 
@@ -99,13 +108,14 @@ func (s *pullService) Close(ctx context.Context, repo string, number int) (*scm.
 }
 
 type pr struct {
-	Number int    `json:"iid"`
-	Sha    string `json:"sha"`
-	Title  string `json:"title"`
-	Desc   string `json:"description"`
-	State  string `json:"state"`
-	Link   string `json:"web_url"`
-	Author struct {
+	Number         int    `json:"iid"`
+	Sha            string `json:"sha"`
+	Title          string `json:"title"`
+	Desc           string `json:"description"`
+	State          string `json:"state"`
+	WorkInProgress bool   `json:"work_in_progress"`
+	Link           string `json:"web_url"`
+	Author         struct {
 		Username string `json:"username"`
 		Email    string `json:"email"`
 		Name     string `json:"name"`
@@ -117,6 +127,11 @@ type pr struct {
 	Updated      time.Time `json:"updated_at"`
 	Closed       time.Time
 	Labels       []string `json:"labels"`
+	DiffRefs     struct {
+		BaseSha  string `json:"base_sha"`
+		HeadSha  string `json:"head_sha"`
+		StartSha string `json:"start_sha"`
+	} `json:"diff_refs"`
 }
 
 type changes struct {
@@ -155,6 +170,7 @@ func convertPullRequest(from *pr) *scm.PullRequest {
 		Source: from.SourceBranch,
 		Target: from.TargetBranch,
 		Link:   from.Link,
+		Draft:  from.WorkInProgress,
 		Closed: from.State != "opened",
 		Merged: from.State == "merged",
 		Author: scm.User{
@@ -165,6 +181,9 @@ func convertPullRequest(from *pr) *scm.PullRequest {
 		Created: from.Created,
 		Updated: from.Updated,
 		Labels:  labels,
+		Base: scm.Reference{
+			Sha: from.DiffRefs.BaseSha,
+		},
 	}
 }
 
