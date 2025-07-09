@@ -8,8 +8,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/drone/go-scm/scm"
 	"github.com/h2non/gock"
+	"github.com/nassergonzalez/go-scm/scm"
 )
 
 func TestContentFind(t *testing.T) {

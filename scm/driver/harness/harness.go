@@ -12,7 +12,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/drone/go-scm/scm"
+	"github.com/nassergonzalez/go-scm/scm"
 )
 
 // New returns a new gitness API client.

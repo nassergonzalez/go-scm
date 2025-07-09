@@ -15,7 +15,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/drone/go-scm/scm"
+	"github.com/nassergonzalez/go-scm/scm"
 )
 
 type webhookService struct {

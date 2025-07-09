@@ -10,7 +10,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/drone/go-scm/scm"
+	"github.com/nassergonzalez/go-scm/scm"
 )
 
 // RepositoryService implements the repository service for

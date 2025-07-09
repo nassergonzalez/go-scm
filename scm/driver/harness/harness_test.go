@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/drone/go-scm/scm"
+	"github.com/nassergonzalez/go-scm/scm"
 )
 
 func TestClient(t *testing.T) {

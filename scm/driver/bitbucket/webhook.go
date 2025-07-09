@@ -15,7 +15,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/drone/go-scm/scm"
+	"github.com/nassergonzalez/go-scm/scm"
 )
 
 // TODO(bradrydzewski) default repository branch is missing in push webhook payloads

@@ -18,6 +18,8 @@ import (
 	"github.com/drone/go-scm/scm/transport"
 	"github.com/google/go-cmp/cmp"
 	"github.com/h2non/gock"
+	"github.com/nassergonzalez/go-scm/scm"
+	"github.com/nassergonzalez/go-scm/scm/transport"
 )
 
 func TestPRFind(t *testing.T) {

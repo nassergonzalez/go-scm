@@ -7,7 +7,7 @@ package harness
 import (
 	"context"
 
-	"github.com/drone/go-scm/scm"
+	"github.com/nassergonzalez/go-scm/scm"
 )
 
 type reviewService struct {
