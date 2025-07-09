@@ -7,7 +7,7 @@ package harness
 import (
 	"context"
 	"fmt"
-	"github.com/drone/go-scm/scm/driver/internal/null"
+	"github.com/nassergonzalez/go-scm/scmdriver/internal/null"
 	"strconv"
 	"strings"
 	"time"
